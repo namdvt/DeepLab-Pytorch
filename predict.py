@@ -4,16 +4,16 @@ import torch
 import torchvision.transforms.functional as F
 import matplotlib.pyplot as plt
 
-from model import Resnet
+from model import DeepLab
 
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
-model = Resnet().to(device)
+model = DeepLab(num_classes=32).to(device)
 model.load_state_dict(torch.load('output/weight.pth', map_location=device))
 model.eval()
 
 if __name__ == '__main__':
-    image = Image.open('data/val2017/000000002149.jpg')
-    image = F.resize(image, [256, 256])
+    image = Image.open('data/CamVid/train/0001TP_009450.png')
+    image = F.resize(image, [512, 512])
     image = F.to_tensor(image).unsqueeze(0)
 
     with torch.no_grad():
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     plt.title('Input')
 
     fig.add_subplot(1, 2, 2)
-    plt.imshow(mask)
+    plt.imshow(mask.cpu())
     plt.axis('off')
     plt.title('Output')
 

@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
-import torchvision.models as models
 from torchvision.models.resnet import conv1x1, Bottleneck, BasicBlock
 
 
 class Conv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=True, dilation=1):
         super(Conv2d, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=bias, dilation=dilation)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=bias,
+                              dilation=dilation)
         self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=False)
 
@@ -29,7 +29,8 @@ class ResBlock(nn.Module):
         self.conv_1x1 = Conv2d(in_channels, out_channels, kernel_size=1)
 
         self.conv = nn.Sequential(
-            Conv2d(in_channels, bottle_neck_channels, kernel_size=1, stride=(2 if down_sample else 1), padding=(2 if down_sample else 1)),
+            Conv2d(in_channels, bottle_neck_channels, kernel_size=1, stride=(2 if down_sample else 1),
+                   padding=(2 if down_sample else 1)),
             Conv2d(bottle_neck_channels, bottle_neck_channels, kernel_size=3),
             Conv2d(bottle_neck_channels, out_channels, kernel_size=1)
         )
@@ -133,10 +134,6 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        # x = self.avgpool(x)
-        # x = torch.flatten(x, 1)
-        # x = self.fc(x)
-
         return x, low_level_feature
 
     def forward(self, x):
@@ -153,6 +150,10 @@ def _resnet(block, layers, pretrained, **kwargs):
 
 def resnet34(pretrained=False, **kwargs):
     return _resnet(BasicBlock, [3, 4, 6, 3], pretrained, **kwargs)
+
+
+def resnet18(pretrained=False, **kwargs):
+    return _resnet(BasicBlock, [2, 2, 2, 2], pretrained, **kwargs)
 
 
 class ASPP(nn.Module):
@@ -190,18 +191,18 @@ class Decoder(nn.Module):
 
     def forward(self, x, low_level_feature):
         low_level_feature = self.conv_1x1(low_level_feature)
-        x = F.interpolate(x, size=([64, 64]), mode='bilinear', align_corners=True)
+        x = F.interpolate(x, size=([x.shape[3] * 4, x.shape[3] * 4]), mode='bilinear', align_corners=True)
         x = torch.cat([low_level_feature, x], dim=1)
         x = self.conv(x)
-        x = F.interpolate(x, size=([256, 256]), mode='bilinear', align_corners=True)
+        x = F.interpolate(x, size=([x.shape[3] * 4, x.shape[3] * 4]), mode='bilinear', align_corners=True)
 
         return x
 
 
 class DeepLab(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, pretrained=False):
         super(DeepLab, self).__init__()
-        self.resnet = resnet34(pretrained=False)
+        self.resnet = resnet34(pretrained=pretrained)
         self.aspp = ASPP(512, 256)
         self.decoder = Decoder(num_classes)
 
@@ -213,6 +214,6 @@ class DeepLab(nn.Module):
 
 
 if __name__ == "__main__":
-    model = DeepLab()
-    input = torch.rand(1, 3, 256, 256)
+    model = DeepLab(num_classes=32)
+    input = torch.rand(1, 3, 512, 512)
     output = model(input)

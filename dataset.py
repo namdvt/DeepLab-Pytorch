@@ -1,54 +1,13 @@
-# from pycocotools.coco import COCO
-from PIL import Image
-import matplotlib.pyplot as plt
-import numpy as np
-
-from torch.utils.data import Dataset, DataLoader, random_split
-import numpy as np
-import tifffile
-import torchvision.transforms.functional as F
-import cv2
-import torch.nn.functional as TF
-import torch
-import random
-from helper import mask_to_anns_img
 import os
-import pandas as pd
+import random
 from collections import OrderedDict
 
-
-# class CocoDataset(Dataset):
-#     def __init__(self, data_folder, anns_file, size):
-#         super(CocoDataset, self).__init__()
-#         self.data_folder = data_folder
-#         self.size = size
-#
-#         self.coco = COCO(anns_file)
-#         self.img_list = list(self.coco.imgs.keys())
-#         self.category_ids = self.coco.getCatIds()
-#
-#     def __len__(self):
-#         return len(self.img_list)
-#
-#     def __getitem__(self, index):
-#         image_id = self.img_list[index]
-#         image = Image.open(self.data_folder + self.coco.imgs.get(image_id).get('file_name'))
-#         image = F.to_tensor(F.resize(image, [self.size, self.size]))
-#         if image.shape[0] != 3:
-#             image = image.expand(3, self.size, self.size)
-#
-#         annotations_ids = self.coco.getAnnIds(imgIds=image_id, catIds=self.category_ids, iscrowd=None)
-#         annotations = self.coco.loadAnns(annotations_ids)
-#
-#         mask = np.zeros((self.size, self.size))
-#         for ann in annotations:
-#             mask = np.maximum(mask, cv2.resize(self.coco.annToMask(ann), (self.size, self.size)) * (ann['category_id'] - 1))
-#
-#         # binary_mask = np.zeros((90, self.size, self.size))
-#         # for ann in annotations:
-#         #     binary_mask[ann['category_id'] - 1] += cv2.resize(self.coco.annToMask(ann), (self.size, self.size))
-#
-#         return image, mask
+import numpy as np
+import torch
+import torchvision.transforms.functional as F
+from PIL import Image
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
 
 camvid_colors = OrderedDict([
     ("Animal", np.array([64, 128, 64])),
@@ -87,23 +46,28 @@ camvid_colors = OrderedDict([
 
 
 class CamVidDataset(Dataset):
-    def __init__(self, data_folder, lablel_folder, size):
+    def __init__(self, data_folder, label_folder, size, augment=False):
         super(CamVidDataset, self).__init__()
         self.data_folder = data_folder
-        self.label_folder = lablel_folder
+        self.label_folder = label_folder
         self.img_list = os.listdir(data_folder)
         self.size = size
+        self.augment = augment
 
     def __len__(self):
         return len(self.img_list)
 
     def __getitem__(self, index):
         image = Image.open(self.data_folder + self.img_list[index])
-        image = F.resize(image, [self.size, self.size])
         label = Image.open(self.label_folder + self.img_list[index].split('.')[0] + '_L.png')
-        label = F.resize(label, [self.size, self.size])
 
-        image, label = transform(image, label)
+        if self.augment:
+            image, label = transform(image, label)
+
+        image = F.to_tensor(F.resize(image, [self.size, self.size]))
+        label = F.resize(label, ([self.size, self.size]))
+        label = get_mask(label)
+        label = torch.tensor(label)
 
         return image, label
 
@@ -118,31 +82,32 @@ def get_mask(im):
 
 
 def transform(image, label):
-    rand = random.randint(0, 1)
-    if rand:
+    # hflip
+    if random.randint(0, 1):
         image = F.hflip(image)
         label = F.hflip(label)
 
-    image = F.to_tensor(image)
-    label = get_mask(label)
+    # crop
+    x = random.randint(0, 224)
+    w = random.randint(512, image.width - x)
+    y = random.randint(0, 104)
+    h = random.randint(512, image.height - y)
+
+    image = F.crop(image, x, y, h, w)
+    label = F.crop(label, x, y, h, w)
+
+    # adjust brightness, contrast, saturation
+    image = F.adjust_brightness(image, random.randint(5, 15) / 10)
+    image = F.adjust_contrast(image, random.randint(5, 15) / 10)
+    image = F.adjust_saturation(image, random.randint(0, 5))
 
     return image, label
 
 
 if __name__ == '__main__':
-    # anns_file = 'data/annotations/instances_val2017.json'
-    # data_folder = 'data/val2017/'
-    # size = 512
-    #
-    # coco_dataset = CocoDataset(anns_file=anns_file, data_folder=data_folder, size=size)
-    # coco_dataloader = DataLoader(coco_dataset, batch_size=2, shuffle=True, drop_last=True)
-    # for image, mask in coco_dataloader:
-    #     print()
-
     train_folder = 'data/CamVid/train/'
     train_label_folder = 'data/CamVid/train_labels/'
-    train_dataset = CamVidDataset(train_folder, train_label_folder, size=256)
+    train_dataset = CamVidDataset(train_folder, train_label_folder, size=512, augment=True)
     train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, drop_last=True)
-    for image, label in train_loader:
+    for image, label in tqdm(train_loader):
         print()
-
