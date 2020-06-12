@@ -13,7 +13,7 @@ class MultipleLoss(nn.Module):
 
         # dice loss
         outputs = torch.softmax(outputs, dim=1)
-        target_one_hot = F.one_hot(targets, num_classes=outputs.shape[1]).permute(0,3,1,2)
+        target_one_hot = F.one_hot(targets, num_classes=outputs.shape[1]).permute(0,3,1,2).float()
 
         numerator = 2 * torch.sum(outputs * target_one_hot) + self.smooth
         denominator = torch.sum(outputs ** 2) + torch.sum(target_one_hot ** 2) + self.smooth

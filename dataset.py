@@ -6,8 +6,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as F
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
+from torch.utils.data import Dataset
 
 camvid_colors = OrderedDict([
     ("Animal", np.array([64, 128, 64])),
@@ -78,7 +77,7 @@ def get_mask(im):
     for gray_val, (label, rgb) in enumerate(camvid_colors.items()):
         match_pxls = ((im == rgb).sum(-1) == 3)
         out[match_pxls] = gray_val
-    return torch.Tensor(out)
+    return out
 
 
 def transform(image, label):
@@ -102,12 +101,3 @@ def transform(image, label):
     image = F.adjust_saturation(image, random.randint(0, 5))
 
     return image, label
-
-
-if __name__ == '__main__':
-    train_folder = 'data/CamVid/train/'
-    train_label_folder = 'data/CamVid/train_labels/'
-    train_dataset = CamVidDataset(train_folder, train_label_folder, size=512, augment=True)
-    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, drop_last=True)
-    for image, label in tqdm(train_loader):
-        print()

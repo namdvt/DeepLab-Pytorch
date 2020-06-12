@@ -20,6 +20,20 @@ class Conv2d(nn.Module):
         return x
 
 
+class UpConv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=True):
+        super(UpConv2d, self).__init__()
+        self.conv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=bias)
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=False)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.bn(x)
+        x = self.relu(x)
+        return x
+
+
 class ResBlock(nn.Module):
     def __init__(self, in_channels, out_channels, down_sample=False):
         super(ResBlock, self).__init__()
@@ -143,17 +157,14 @@ class ResNet(nn.Module):
 def _resnet(block, layers, pretrained, **kwargs):
     model = ResNet(block, layers, **kwargs)
     if pretrained:
-        state_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet34-333f7ec4.pth')
+        state_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth') # resnet101
+        
         model.load_state_dict(state_dict)
     return model
 
 
-def resnet34(pretrained=False, **kwargs):
-    return _resnet(BasicBlock, [3, 4, 6, 3], pretrained, **kwargs)
-
-
-def resnet18(pretrained=False, **kwargs):
-    return _resnet(BasicBlock, [2, 2, 2, 2], pretrained, **kwargs)
+def resnet101(pretrained=False, **kwargs):
+    return _resnet(Bottleneck, [3, 4, 23, 3], pretrained, **kwargs)
 
 
 class ASPP(nn.Module):
@@ -202,8 +213,8 @@ class Decoder(nn.Module):
 class DeepLab(nn.Module):
     def __init__(self, num_classes, pretrained=False):
         super(DeepLab, self).__init__()
-        self.resnet = resnet34(pretrained=pretrained)
-        self.aspp = ASPP(512, 256)
+        self.resnet = resnet101(pretrained=pretrained)
+        self.aspp = ASPP(2048, 256)
         self.decoder = Decoder(num_classes)
 
     def forward(self, x):
@@ -211,9 +222,3 @@ class DeepLab(nn.Module):
         x = self.aspp(x)
         x = self.decoder(x, low_level_feature)
         return x
-
-
-if __name__ == "__main__":
-    model = DeepLab(num_classes=32)
-    input = torch.rand(1, 3, 512, 512)
-    output = model(input)
