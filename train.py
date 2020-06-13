@@ -43,7 +43,7 @@ def fit(epoch, model, optimizer, criterion, device, data_loader, phase='training
 def train():
     print('start training ...........')
     device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
-    model = DeepLab(num_classes=32, pretrained=False).to(device)
+    model = DeepLab(num_classes=32, pretrained=True).to(device)
     # model.load_state_dict(torch.load('output/weight.pth', map_location=device))
     batch_size = 4
     num_epochs = 200

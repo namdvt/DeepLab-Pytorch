@@ -1,6 +1,6 @@
 # DeepLab v3
 ## General
-This is a PyTorch implementation of [DeepLab-V3-Plus](https://arxiv.org/pdf/1802.02611) for semantic image segmentation. Currently, I use Resnet as backbone and train the model using the [Cambridge-driving Labeled Video Database (CamVid) dataset](http://mi.eng.cam.ac.uk/research/projects/VideoRec/CamVid).
+This is a PyTorch implementation of [DeepLab-V3-Plus](https://arxiv.org/pdf/1802.02611) for semantic image segmentation. Currently, I use Resnet as backbone and train the model using the [Cambridge-driving Labeled Video Database (CamVid dataset)](http://mi.eng.cam.ac.uk/research/projects/VideoRec/CamVid).
 
 ## Files
 
@@ -37,7 +37,7 @@ Training and validation loss:
 ![Image description](output/loss.png)
 ### Testing
 ```
-python test.py
+python predict.py
 ```
 Some experimental results:
 
